@@ -19,7 +19,7 @@ export function dbPostToPost(row: DbPost): Post {
     likes: row.likes,
     likesCount: row.likes,
     liked: row.liked,
-    replies: 0,
+    replies: Number(row.comments ?? 0),
     reposts: 0,
   };
 }
