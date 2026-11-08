@@ -41,7 +41,7 @@ export function TabShell({
   userStories,
   following,
 }: {
-  viewer: Viewer;
+  viewer: Viewer | null;
   dbPosts: Post[];
   userStories: Story[];
   following: string[];
