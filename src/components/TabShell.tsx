@@ -8,7 +8,7 @@ import { Catalog } from "@/components/catalog/Catalog";
 import { PageHeader } from "@/components/PageHeader";
 import { MyProfile } from "@/components/profile/MyProfile";
 import { ProfileView } from "@/components/ProfileView";
-import { meta, plural } from "@/lib/data";
+import { meta } from "@/lib/data";
 import type { Post, Story } from "@/lib/types";
 import type { Viewer } from "@/lib/auth";
 
@@ -23,15 +23,11 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
 
 const TOOLS: { href: string; title: string; desc: string; icon: IconName }[] = [
   { href: "/tools/chances", title: "Калькулятор шансов", desc: "Введи баллы ЕГЭ — покажем программы, где ты проходишь по проходным 2026.", icon: "bolt" },
-  { href: "/za-rubezhom", title: "Учёба за рубежом", desc: "Стипендии, которые реально покрывают обучение, и дедлайны на 2027.", icon: "globe" },
+  { href: "/tools/compare", title: "Сравнение вузов", desc: "До трёх программ бок о бок: баллы, места, стоимость, шансы.", icon: "table" },
+  { href: "/tools/deadlines", title: "Трекер дедлайнов", desc: "Дни открытых дверей, стипендии и ЕГЭ — с обратным отсчётом.", icon: "globe" },
+  { href: "/za-rubezhom", title: "Учёба за рубежом", desc: "Стипендии, которые реально покрывают обучение, и дедлайны на 2027.", icon: "install" },
   { href: "/favorites", title: "Избранное", desc: "Посты и советы, которые ты сохранил, чтобы вернуться позже.", icon: "bookmark" },
-  { href: "/proposals", title: "Предложить правку", desc: "Нашёл неточность в баллах или стоимости? Собери заявку за минуту.", icon: "table" },
-  { href: "/pwa", title: "Приложение", desc: "Установи educa на телефон — работает как обычное приложение.", icon: "install" },
-];
-
-const SOON = [
-  { title: "Сравнение вузов", desc: "До трёх программ рядом: баллы, места, стоимость." },
-  { title: "Трекер дедлайнов", desc: "Напоминания о днях открытых дверей и приёме документов." },
+  { href: "/proposals", title: "Предложить правку", desc: "Нашёл неточность в баллах или стоимости? Собери заявку за минуту.", icon: "flag" },
 ];
 
 /**
@@ -99,20 +95,6 @@ export function TabShell({
                 </span>
               </span>
             </Link>
-          ))}
-          {SOON.map((tool) => (
-            <div className="tool" key={tool.title} style={{ opacity: 0.65 }}>
-              <span className="tool-icon">
-                <Icon name="sparkle" size={20} />
-              </span>
-              <span>
-                <span className="tool-title">{tool.title}</span>
-                <span className="tool-desc" style={{ display: "block" }}>
-                  {tool.desc}
-                </span>
-              </span>
-              <span className="tool-soon">скоро</span>
-            </div>
           ))}
         </div>
         <div className="page">
