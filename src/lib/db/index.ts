@@ -54,6 +54,31 @@ export function getDb(): Promise<Db> {
   if (!globalForDb.__educaDb) {
     globalForDb.__educaDb = createDb().then(async (db) => {
       await db.exec(SCHEMA_SQL);
+
+      /* Пустая база наполняется демо-контентом, чтобы educa была живой сразу. */
+      try {
+        const { seedDemoContent } = await import("./queries");
+        await seedDemoContent({
+          createUser: async (input) => {
+            await db.query(
+              `insert into users (id, email, handle, name, password_hash)
+               values ($1, $2, $3, $4, $5)`,
+              [input.id, input.email.toLowerCase(), input.handle, input.name, input.passwordHash],
+            );
+          },
+          createPost: async (input) => {
+            await db.query(`insert into posts (id, author_id, cat, text) values ($1, $2, $3, $4)`, [
+              input.id,
+              input.authorId,
+              input.cat,
+              input.text,
+            ]);
+          },
+        });
+      } catch {
+        /* сидинг не критичен: без него лента всё равно работает */
+      }
+
       return db;
     });
   }
