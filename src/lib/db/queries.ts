@@ -19,6 +19,7 @@ export type DbPost = {
   created_at: string;
   likes: number;
   liked: boolean;
+  comments: number;
 };
 
 export type DbStory = {
@@ -27,6 +28,16 @@ export type DbStory = {
   author_name: string;
   author_handle: string;
   slides: { title: string; text: string }[];
+  created_at: string;
+};
+
+export type DbComment = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  author_name: string;
+  author_handle: string;
+  text: string;
   created_at: string;
 };
 
@@ -136,6 +147,7 @@ const POST_SELECT = `
   select p.id, p.author_id, u.name as author_name, u.handle as author_handle,
          p.cat, p.text, p.created_at,
          (select count(*)::int from likes l where l.post_id = p.id) as likes,
+         (select count(*)::int from comments c where c.post_id = p.id) as comments,
          exists(select 1 from likes l where l.post_id = p.id and l.user_id = $1) as liked
   from posts p join users u on u.id = p.author_id
 `;
@@ -147,19 +159,30 @@ export async function listFeedPosts(viewerId: string, options?: { followingOnly?
          select 1 from follows f where f.follower_id = $1 and f.target = p.author_id
        )`
     : "";
-  const rows = await db.query<DbPost>(`${POST_SELECT} ${where} order by p.created_at desc limit 60`, [
-    viewerId,
-  ]);
-  return rows.map((row) => ({ ...row, created_at: iso(row.created_at), likes: Number(row.likes) }));
+  const rows = await db.query<DbPost & { comments: number }>(
+    `${POST_SELECT} ${where} order by p.created_at desc limit 60`,
+    [viewerId],
+  );
+  return rows.map((row) => ({
+    ...row,
+    created_at: iso(row.created_at),
+    likes: Number(row.likes),
+    comments: Number(row.comments ?? 0),
+  }));
 }
 
 export async function listPostsByAuthor(authorId: string, viewerId = "") {
   const db = await getDb();
-  const rows = await db.query<DbPost>(
+  const rows = await db.query<DbPost & { comments: number }>(
     `${POST_SELECT} where p.author_id = $2 order by p.created_at desc limit 60`,
     [viewerId, authorId],
   );
-  return rows.map((row) => ({ ...row, created_at: iso(row.created_at), likes: Number(row.likes) }));
+  return rows.map((row) => ({
+    ...row,
+    created_at: iso(row.created_at),
+    likes: Number(row.likes),
+    comments: Number(row.comments ?? 0),
+  }));
 }
 
 export async function countUserStats(userId: string) {
@@ -271,4 +294,109 @@ export async function followingIds(followerId: string) {
     followerId,
   ]);
   return rows.map((row) => row.target);
+}
+
+/* ---------- комментарии ---------- */
+
+export async function listComments(postId: string) {
+  const db = await getDb();
+  const rows = await db.query<DbComment>(
+    `select c.id, c.post_id, c.author_id, u.name as author_name, u.handle as author_handle,
+            c.text, c.created_at
+     from comments c join users u on u.id = c.author_id
+     where c.post_id = $1
+     order by c.created_at asc`,
+    [postId],
+  );
+  return rows.map((row) => ({ ...row, created_at: iso(row.created_at) }));
+}
+
+export async function createComment(input: {
+  id: string;
+  postId: string;
+  authorId: string;
+  text: string;
+}) {
+  const db = await getDb();
+  const rows = await db.query<DbComment>(
+    `insert into comments (id, post_id, author_id, text)
+     values ($1, $2, $3, $4)
+     returning id, post_id, author_id, text, created_at`,
+    [input.id, input.postId, input.authorId, input.text],
+  );
+  const row = rows[0];
+  const user = await findUserById(input.authorId);
+  return {
+    id: row.id,
+    post_id: row.post_id,
+    author_id: row.author_id,
+    author_name: user?.name ?? "",
+    author_handle: user?.handle ?? "",
+    text: row.text,
+    created_at: iso(row.created_at),
+  };
+}
+
+export async function deleteComment(commentId: string, authorId: string) {
+  const db = await getDb();
+  const rows = await db.query<{ id: string }>(
+    `delete from comments where id = $1 and author_id = $2 returning id`,
+    [commentId, authorId],
+  );
+  return rows.length > 0;
+}
+
+/* ---------- сидинг демо-контента ---------- */
+
+/**
+ * Пустая база (первый запуск / PGlite на serverless) наполняется демо-контентом,
+ * чтобы educa выглядела живой сразу. Войти в демо-аккаунты нельзя:
+ * пароли — случайные байты.
+ */
+export async function seedDemoContent(seed: {
+  createUser: (input: {
+    id: string;
+    email: string;
+    handle: string;
+    name: string;
+    passwordHash: string;
+  }) => Promise<void>;
+  createPost: (input: { id: string; authorId: string; cat: string; text: string }) => Promise<void>;
+}) {
+  const demoUsers = [
+    { id: "demo-mfti", email: "mfti@educa.demo", handle: "mfti", name: "МФТИ" },
+    { id: "demo-vshe", email: "vshe@educa.demo", handle: "vshe", name: "НИУ ВШЭ" },
+    { id: "demo-bot", email: "bot@educa.demo", handle: "bot", name: "Поступалка Бот" },
+    { id: "demo-sasha", email: "sasha@educa.demo", handle: "sasha-k", name: "Саша К." },
+    { id: "demo-dasha", email: "dasha@educa.demo", handle: "dasha-v", name: "Даша В." },
+  ];
+
+  const db = await getDb();
+  const existing = await db.query<{ count: number }>(`select count(*)::int as count from users`);
+  if (Number(existing[0]?.count ?? 0) > 0) return;
+
+  for (const user of demoUsers) {
+    await seed.createUser({
+      id: user.id,
+      email: user.email,
+      handle: user.handle,
+      name: user.name,
+      passwordHash: `demo$${user.id}`,
+    });
+  }
+
+  const demoPosts = [
+    { authorId: "demo-bot", cat: "useful", text: "Совет: подтяни запись на дни открытых дверей через трекер дедлайнов — в ноябре их целых два." },
+    { authorId: "demo-mfti", cat: "uni", text: "ФПМИ приглашает 11-классников на экскурсию в лаборатории квантовых вычислений." },
+    { authorId: "demo-sasha", cat: "common", text: "Кто идёт на ДДИ ВШЭ в декабре? Собираемся группой 👋" },
+    { authorId: "demo-dasha", cat: "memes", text: "моя стратегия поступления: поступить. всё." },
+  ];
+  for (const post of demoPosts) {
+    await seed.createPost({
+      id: `demo-${post.authorId}-${Math.random().toString(16).slice(2, 8)}`,
+      authorId: post.authorId,
+      cat: post.cat,
+      text: post.text,
+    });
+  }
 }
