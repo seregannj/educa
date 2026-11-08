@@ -1,6 +1,6 @@
 /**
  * Схема educa. Выполняется при первом обращении к базе (CREATE IF NOT EXISTS).
- * Одинаково работает в Postgres и в локальном PGlite.
+ * Одинаково работает в Postgres и в локальной PGlite.
  */
 export const SCHEMA_SQL = `
 create table if not exists users (
@@ -55,4 +55,14 @@ create table if not exists follows (
   created_at timestamptz not null default now(),
   primary key (follower_id, target)
 );
+
+create table if not exists comments (
+  id text primary key,
+  post_id text not null references posts(id) on delete cascade,
+  author_id text not null references users(id) on delete cascade,
+  text text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists comments_post_idx on comments (post_id, created_at);
 `;
