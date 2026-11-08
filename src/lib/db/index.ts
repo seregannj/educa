@@ -3,8 +3,9 @@ import { SCHEMA_SQL } from "./schema";
 /**
  * Один SQL-диалект для продакшена и разработки:
  * - есть DATABASE_URL → Postgres (Vercel + Neon/Supabase и т.п.);
- * - нет → PGlite (Postgres в WASM), данные в .data/pglite локально
- *   или /tmp/educa-pglite на serverless (Vercel: CWD read-only).
+ * - локально нет → PGlite (Postgres в WASM), данные в .data/pglite;
+ * - на serverless без DATABASE_URL → гостевой режим без БД: WASM-инициализация
+ *   PGlite перевешивает лимит функции, поэтому `/` повисал.
  */
 export type Db = {
   query: <T>(text: string, params?: unknown[]) => Promise<T[]>;
@@ -30,12 +31,21 @@ async function createDb(): Promise<Db> {
     };
   }
 
+  /* На serverless (Vercel) без внешней базы работаем в гостевом режиме:
+     редакционный контент отдаётся, записи требуют DATABASE_URL. */
+  if (process.env.VERCEL === "1") {
+    const stub: Db = {
+      async query<T>() {
+        return [] as unknown as T[];
+      },
+      async exec() {},
+    };
+    return stub;
+  }
+
   const { PGlite } = await import("@electric-sql/pglite");
   const { mkdirSync } = await import("node:fs");
-  // На Vercel (serverless) рабочая директория read-only — единственная
-  // записываемая папка это /tmp. Локально оставляем .data/pglite.
-  const dataDir =
-    process.env.VERCEL === "1" ? "/tmp/educa-pglite" : ".data/pglite";
+  const dataDir = ".data/pglite";
   mkdirSync(dataDir, { recursive: true });
   const pglite = new PGlite(dataDir);
   return {
@@ -55,7 +65,7 @@ export function getDb(): Promise<Db> {
     globalForDb.__educaDb = createDb().then(async (db) => {
       await db.exec(SCHEMA_SQL);
 
-      /* Пустая база наполняется демо-контентом, чтобы educa была живой сразу. */
+      /* Пустая база (только локальный PGlite) наполняется демо-контентом. */
       try {
         const { seedDemoContent } = await import("./queries");
         await seedDemoContent({
