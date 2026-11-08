@@ -1,4 +1,3 @@
-import { Feed } from "@/components/feed/Feed";
 import { TabShell } from "@/components/TabShell";
 import { getCurrentUser } from "@/lib/auth";
 import { followingIds, listFeedPosts, listStories } from "@/lib/db/queries";
