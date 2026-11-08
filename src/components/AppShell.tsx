@@ -21,6 +21,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
+  /* На домашнем маршруте вкладками владеет TabShell — его док мгновенный. */
+  const isHome = pathname === "/";
+
   // Переход уже начался — подсветка переключается сразу, без ожидания сервера.
   useEffect(() => {
     setPendingHref(null);
@@ -31,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app">
+      <style>{".dock-hidden{display:none!important}"}</style>
       {loading ? <div className="routebar" aria-hidden="true" /> : null}
 
       <aside className="rail">
@@ -88,7 +92,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="screen">{children}</div>
 
-      <nav className="dock" aria-label="Основная навигация">
+      <nav
+        className={`dock${isHome ? " dock-hidden" : ""}`}
+        aria-label="Основная навигация"
+      >
         {NAV.map((item) => {
           const active = isActive(activePath, item.href);
           return (
