@@ -3,7 +3,8 @@ import { SCHEMA_SQL } from "./schema";
 /**
  * Один SQL-диалект для продакшена и разработки:
  * - есть DATABASE_URL → Postgres (Vercel + Neon/Supabase и т.п.);
- * - нет → PGlite (Postgres в WASM), данные в .data/pglite.
+ * - нет → PGlite (Postgres в WASM), данные в .data/pglite локально
+ *   или /tmp/educa-pglite на serverless (Vercel: CWD read-only).
  */
 export type Db = {
   query: <T>(text: string, params?: unknown[]) => Promise<T[]>;
@@ -31,8 +32,12 @@ async function createDb(): Promise<Db> {
 
   const { PGlite } = await import("@electric-sql/pglite");
   const { mkdirSync } = await import("node:fs");
-  mkdirSync(".data", { recursive: true });
-  const pglite = new PGlite(".data/pglite");
+  // На Vercel (serverless) рабочая директория read-only — единственная
+  // записываемая папка это /tmp. Локально оставляем .data/pglite.
+  const dataDir =
+    process.env.VERCEL === "1" ? "/tmp/educa-pglite" : ".data/pglite";
+  mkdirSync(dataDir, { recursive: true });
+  const pglite = new PGlite(dataDir);
   return {
     async query<T>(text: string, params: unknown[] = []) {
       const result = await pglite.query<T>(text, params);
