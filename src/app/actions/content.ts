@@ -69,9 +69,8 @@ export async function toggleLikeAction(
 ): Promise<{ requiresAuth?: boolean; liked?: boolean; likes?: number }> {
   const user = await getCurrentUser();
   if (!user) return { requiresAuth: true };
-  const result = await toggleLike(postId, user.id);
-  revalidatePath("/");
-  return result;
+  // Без revalidatePath: счётчик обновляется оптимистично, а кэш ленты не сбрасывается.
+  return toggleLike(postId, user.id);
 }
 
 export async function toggleFollowAction(
@@ -80,9 +79,7 @@ export async function toggleFollowAction(
   const user = await getCurrentUser();
   if (!user) return { requiresAuth: true };
   if (target === user.id) return { following: false };
-  const result = await toggleFollow(user.id, target);
-  revalidatePath("/");
-  return result;
+  return toggleFollow(user.id, target);
 }
 
 export async function followHandleAction(
