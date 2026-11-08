@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.vercel
+
+# артефакты чата
+screenshots/
+
+# локальная база
+.data/

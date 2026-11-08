@@ -1,0 +1,26 @@
+{
+  "name": "educa",
+  "version": "0.2.0",
+  "private": true,
+  "description": "educa — карта твоего будущего: вузы, программы, шансы поступления",
+  "scripts": {
+    "data": "node scripts/build-data.mjs",
+    "dev": "npm run data && next dev",
+    "build": "npm run data && next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "next": "15.5.29",
+    "pg": "^8.23.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}
