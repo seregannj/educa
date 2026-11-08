@@ -1,4 +1,5 @@
 import { Feed } from "@/components/feed/Feed";
+import { TabShell } from "@/components/TabShell";
 import { getCurrentUser } from "@/lib/auth";
 import { followingIds, listFeedPosts, listStories } from "@/lib/db/queries";
 import { dbPostToPost, dbStoryToStory } from "@/lib/feed";
@@ -15,8 +16,8 @@ export default async function HomePage() {
   ]);
 
   return (
-    <Feed
-      viewer={user ? { id: user.id, name: user.name, handle: user.handle } : null}
+    <TabShell
+      viewer={user}
       dbPosts={posts.map(dbPostToPost)}
       userStories={stories.map(dbStoryToStory)}
       following={following}
