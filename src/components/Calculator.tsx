@@ -4,6 +4,13 @@ import { useMemo, useState } from "react";
 import { ProgramCard } from "@/components/catalog/ProgramCard";
 import { CHANCE_COLOR, CHANCE_LABEL, chanceFor, formatNumber, programs, spheres } from "@/lib/data";
 
+/** Ограда ввода: только цифры, без ведущих нулей, не выше максимума. */
+function clampInput(value: string, max: number): string {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (!digits) return "";
+  return String(Math.min(max, Number(digits)));
+}
+
 export function Calculator() {
   const [ru, setRu] = useState("");
   const [math, setMath] = useState("");
@@ -49,7 +56,7 @@ export function Calculator() {
             max={100}
             placeholder="—"
             value={ru}
-            onChange={(event) => setRu(event.target.value)}
+            onChange={(event) => setRu(clampInput(event.target.value, 100))}
           />
         </div>
         <div className="field" style={{ marginTop: 0 }}>
@@ -63,7 +70,7 @@ export function Calculator() {
             max={100}
             placeholder="—"
             value={math}
-            onChange={(event) => setMath(event.target.value)}
+            onChange={(event) => setMath(clampInput(event.target.value, 100))}
           />
         </div>
         <div className="field" style={{ marginTop: 0 }}>
@@ -77,7 +84,7 @@ export function Calculator() {
             max={100}
             placeholder="—"
             value={third}
-            onChange={(event) => setThird(event.target.value)}
+            onChange={(event) => setThird(clampInput(event.target.value, 100))}
           />
         </div>
       </div>
@@ -93,7 +100,7 @@ export function Calculator() {
           max={10}
           placeholder="0"
           value={extra}
-          onChange={(event) => setExtra(event.target.value)}
+          onChange={(event) => setExtra(clampInput(event.target.value, 10))}
           style={{ maxWidth: 140 }}
         />
       </div>
