@@ -7,9 +7,10 @@ import { ToastProvider } from "@/components/providers/ToastProvider";
 import { AppStateProvider } from "@/components/providers/AppStateProvider";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { posts } from "@/data/posts";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://educa.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "educa — карта твоего будущего",
     template: "%s · educa",
