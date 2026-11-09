@@ -2,7 +2,6 @@
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import {
   clearSessionCookie,
   getCurrentUser,
@@ -14,6 +13,7 @@ import {
   validateRegistration,
   verifyPassword,
 } from "@/lib/auth";
+import { isGuestMode } from "@/lib/db";
 import {
   createSession,
   createUser,
@@ -21,22 +21,24 @@ import {
   findUserByEmail,
   handleTaken,
 } from "@/lib/db/queries";
-import { hitLimit } from "@/lib/rate-limit";
+import { clientKey, hitLimit } from "@/lib/rate-limit";
 
 export type AuthState = { error?: string; fieldErrors?: Record<string, string> } | null;
-
-async function clientKey(): Promise<string> {
-  const store = await headers();
-  const forwarded = store.get("x-forwarded-for") ?? "local";
-  return forwarded.split(",")[0].trim();
-}
 
 export async function registerAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (hitLimit(`register:${await clientKey()}`, 5)) {
+  // В гостевом режиме (serverless без DATABASE_URL) регистрация всё равно
+  // не сохранится — честно скажем об этом сразу, а не после заполнения формы.
+  if (isGuestMode()) {
+    return { error: "Регистрация временно недоступна: не настроена база данных (DATABASE_URL)." };
+  }
+
+  // 10 на 10 минут: одна школа за общим NAT не должна упираться в лимит,
+  // но и лить аккаунты пачкой это не позволяет.
+  if (hitLimit(`register:${await clientKey()}`, 10)) {
     return { error: "Слишком много попыток. Попробуй через 10 минут." };
   }
 
@@ -76,6 +78,10 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
 export async function loginAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+
+  if (isGuestMode()) {
+    return { error: "Вход временно недоступен: не настроена база данных (DATABASE_URL)." };
+  }
 
   if (hitLimit(`login:${email}:${await clientKey()}`)) {
     return { error: "Слишком много попыток входа. Подожди 10 минут." };
