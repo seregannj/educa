@@ -34,7 +34,7 @@ create index if not exists posts_created_idx on posts (created_at desc);
 create index if not exists posts_author_idx on posts (author_id);
 
 create table if not exists likes (
-  post_id text not null,
+  post_id text not null references posts(id) on delete cascade,
   user_id text not null references users(id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (post_id, user_id)
@@ -51,7 +51,7 @@ create index if not exists stories_created_idx on stories (created_at desc);
 
 create table if not exists follows (
   follower_id text not null references users(id) on delete cascade,
-  target text not null,
+  target text not null references users(id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (follower_id, target)
 );
@@ -66,3 +66,18 @@ create table if not exists comments (
 
 create index if not exists comments_post_idx on comments (post_id, created_at);
 `;
+
+/**
+ * Мягкие миграции для баз, созданных до этих ограничений: likes.post_id и
+ * follows.target не ссылались на родительские таблицы, поэтому после удаления
+ * поста или пользователя оставались строки-сироты. Каждая миграция выполняется
+ * отдельно и в try/catch (см. db/index.ts) — повторный запуск и старые базы
+ * не роняем: сработает лишь раз, дальше ошибка «constraint already exists»
+ * тихо проглатывается.
+ */
+export const MIGRATIONS: string[] = [
+  "delete from likes where post_id not in (select id from posts)",
+  "alter table likes add constraint likes_post_fk foreign key (post_id) references posts(id) on delete cascade",
+  "delete from follows where target not in (select id from users)",
+  "alter table follows add constraint follows_target_fk foreign key (target) references users(id) on delete cascade",
+];
