@@ -1,5 +1,7 @@
 /* educa service worker: офлайн-оболочка и кэш статики. */
-const VERSION = "educa-v1";
+/* Версия кэша: поднимай при изменениях оболочки (SHELL) или офлайн-страницы —
+   старый кэш удалится в activate, а клиенты получат свежий. */
+const VERSION = "educa-v2";
 const SHELL = ["/", "/vuzy", "/tools", "/pwa", "/offline"];
 
 self.addEventListener("install", (event) => {
