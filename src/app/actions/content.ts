@@ -11,6 +11,7 @@ import {
   toggleFollow,
   toggleLike,
 } from "@/lib/db/queries";
+import { hitLimit } from "@/lib/rate-limit";
 
 export type ContentState = { ok?: boolean; error?: string } | null;
 
@@ -22,6 +23,11 @@ export async function createPostAction(_prev: ContentState, formData: FormData):
 
   const text = String(formData.get("text") ?? "").trim();
   const cat = String(formData.get("cat") ?? "common");
+
+  // Антиспам: человеку хватает с запасом, боту — нет.
+  if (hitLimit(`post:${user.id}`, 5, 60_000)) {
+    return { error: "Слишком много постов подряд. Подожди минуту." };
+  }
 
   if (text.length < 2) return { error: "Слишком коротко" };
   if (text.length > 600) return { error: "Максимум 600 символов" };
@@ -46,6 +52,10 @@ export async function deletePostAction(postId: string): Promise<{ ok: boolean }>
 export async function createStoryAction(_prev: ContentState, formData: FormData): Promise<ContentState> {
   const user = await getCurrentUser();
   if (!user) return { error: "Войди, чтобы публиковать истории" };
+
+  if (hitLimit(`story:${user.id}`, 3, 60_000)) {
+    return { error: "Слишком много историй подряд. Подожди минуту." };
+  }
 
   const slides = [1, 2, 3]
     .map((index) => ({
@@ -94,4 +104,3 @@ export async function followHandleAction(
   revalidatePath(`/u/${handle}`);
   return result;
 }
-
