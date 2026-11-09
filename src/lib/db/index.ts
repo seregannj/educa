@@ -1,4 +1,4 @@
-import { SCHEMA_SQL } from "./schema";
+import { MIGRATIONS, SCHEMA_SQL } from "./schema";
 
 /**
  * Один SQL-диалект для продакшена и разработки:
@@ -11,6 +11,11 @@ export type Db = {
   query: <T>(text: string, params?: unknown[]) => Promise<T[]>;
   exec: (text: string) => Promise<void>;
 };
+
+/** Гостевой режим: на serverless без DATABASE_URL записи не сохраняются. */
+export function isGuestMode(): boolean {
+  return process.env.VERCEL === "1" && !process.env.DATABASE_URL;
+}
 
 const globalForDb = globalThis as unknown as { __educaDb?: Promise<Db> };
 
@@ -33,7 +38,7 @@ async function createDb(): Promise<Db> {
 
   /* На serverless (Vercel) без внешней базы работаем в гостевом режиме:
      редакционный контент отдаётся, записи требуют DATABASE_URL. */
-  if (process.env.VERCEL === "1") {
+  if (isGuestMode()) {
     const stub: Db = {
       async query<T>() {
         return [] as unknown as T[];
@@ -64,6 +69,23 @@ export function getDb(): Promise<Db> {
   if (!globalForDb.__educaDb) {
     globalForDb.__educaDb = createDb().then(async (db) => {
       await db.exec(SCHEMA_SQL);
+
+      /* Мягкие миграции: каждая — отдельно и с проглатыванием ошибки,
+         чтобы повторный запуск или старая база не роняли старт процесса. */
+      for (const statement of MIGRATIONS) {
+        try {
+          await db.exec(statement);
+        } catch {
+          /* ограничение уже стоит или данные не позволили — не критично */
+        }
+      }
+
+      /* Просроченные сессии иначе не удаляет никто — чистим при старте процесса. */
+      try {
+        await db.exec("delete from sessions where expires_at < now()");
+      } catch {
+        /* не критично */
+      }
 
       /* Пустая база (только локальный PGlite) наполняется демо-контентом. */
       try {
