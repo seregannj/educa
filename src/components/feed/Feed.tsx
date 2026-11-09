@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Composer, LoginCta } from "./Composer";
 import { DailyTask } from "./DailyTask";
 import { EndOfFeed } from "./EndOfFeed";
@@ -39,6 +40,7 @@ export function Feed({
   userStories: Story[];
   following: string[];
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("subs");
   const { isSubscribed } = useAppState();
 
@@ -69,6 +71,9 @@ export function Feed({
         setRefreshing(true);
         setPull(60);
         setTimeout(() => {
+          // Свежие данные с сервера: без refresh() «обновление» лишь
+          // перерисовывало шелл со старыми пропсами.
+          router.refresh();
           setRefreshedAt(Date.now());
           setRefreshing(false);
           setPull(0);
@@ -86,7 +91,7 @@ export function Feed({
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [pull, refreshing]);
+  }, [pull, refreshing, router]);
 
   const allStories = [...userStories, ...editorialStories];
 
