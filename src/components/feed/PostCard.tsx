@@ -89,13 +89,13 @@ export function PostCard({
     if (!text || sending) return;
     setSending(true);
     startTransition(async () => {
-      const added = await addCommentAction(post.id, text);
+      const result = await addCommentAction(post.id, text);
       setSending(false);
-      if (!added) {
-        toast("Войди, чтобы комментировать");
+      if (!result.ok) {
+        toast(result.error);
         return;
       }
-      setComments((prev) => (prev ? [...prev, added] : [added]));
+      setComments((prev) => (prev ? [...prev, result.comment] : [result.comment]));
       setCommentText("");
     });
   };
