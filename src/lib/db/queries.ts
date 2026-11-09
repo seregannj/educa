@@ -214,22 +214,26 @@ export async function deletePost(postId: string, authorId: string) {
 
 export async function toggleLike(postId: string, userId: string) {
   const db = await getDb();
-  const existing = await db.query<{ post_id: string }>(
-    `select post_id from likes where post_id = $1 and user_id = $2`,
+
+  /* Атомарный toggle вместо select→insert/delete: два быстрых клика не
+     устраивают гонку и не ловят ошибку дубля первичного ключа. */
+  const removed = await db.query<{ post_id: string }>(
+    `delete from likes where post_id = $1 and user_id = $2 returning post_id`,
     [postId, userId],
   );
 
-  if (existing.length) {
-    await db.query(`delete from likes where post_id = $1 and user_id = $2`, [postId, userId]);
-  } else {
-    await db.query(`insert into likes (post_id, user_id) values ($1, $2)`, [postId, userId]);
+  if (removed.length === 0) {
+    await db.query(`insert into likes (post_id, user_id) values ($1, $2) on conflict do nothing`, [
+      postId,
+      userId,
+    ]);
   }
 
   const rows = await db.query<{ likes: number }>(
     `select count(*)::int as likes from likes where post_id = $1`,
     [postId],
   );
-  return { liked: existing.length === 0, likes: Number(rows[0]?.likes ?? 0) };
+  return { liked: removed.length === 0, likes: Number(rows[0]?.likes ?? 0) };
 }
 
 /* ---------- истории ---------- */
@@ -266,17 +270,19 @@ export async function listStories(limit = 8) {
 
 export async function toggleFollow(followerId: string, target: string) {
   const db = await getDb();
-  const existing = await db.query<{ target: string }>(
-    `select target from follows where follower_id = $1 and target = $2`,
+
+  /* Атомарный toggle — как в лайках: без гонки и дублей. */
+  const removed = await db.query<{ target: string }>(
+    `delete from follows where follower_id = $1 and target = $2 returning target`,
     [followerId, target],
   );
-
-  if (existing.length) {
-    await db.query(`delete from follows where follower_id = $1 and target = $2`, [followerId, target]);
-    return { following: false };
+  if (removed.length === 0) {
+    await db.query(
+      `insert into follows (follower_id, target) values ($1, $2) on conflict do nothing`,
+      [followerId, target],
+    );
   }
-  await db.query(`insert into follows (follower_id, target) values ($1, $2)`, [followerId, target]);
-  return { following: true };
+  return { following: removed.length === 0 };
 }
 
 export async function isFollowing(followerId: string, target: string) {
