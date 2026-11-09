@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 /**
  * Простой лимит попыток в памяти процесса.
  * Для одного инстанса этого достаточно; при масштабировании заменить на Redis.
@@ -22,4 +24,11 @@ export function hitLimit(key: string, limit = 8, windowMs = 10 * 60 * 1000): boo
     }
   }
   return bucket.count > limit;
+}
+
+/** Ключ клиента для лимитов: первый IP из прокси-заголовков или "local" в dev. */
+export async function clientKey(): Promise<string> {
+  const store = await headers();
+  const forwarded = store.get("x-forwarded-for") ?? "local";
+  return forwarded.split(",")[0].trim();
 }
